@@ -1,0 +1,40 @@
+{
+  "classes": [
+    {
+      "id": 0,
+      "key": "dent",
+      "name": "凹陷",
+      "color": "#2563eb"
+    },
+    {
+      "id": 1,
+      "key": "scratch",
+      "name": "划痕",
+      "color": "#0d9488"
+    },
+    {
+      "id": 2,
+      "key": "crack",
+      "name": "裂纹",
+      "color": "#ea580c"
+    },
+    {
+      "id": 3,
+      "key": "glass_shatter",
+      "name": "玻璃破损",
+      "color": "#7c3aed"
+    },
+    {
+      "id": 4,
+      "key": "lamp_broken",
+      "name": "车灯破损",
+      "color": "#d97706"
+    },
+    {
+      "id": 5,
+      "key": "tire_flat",
+      "name": "轮胎破损",
+      "color": "#e11d48"
+    }
+  ]
+}

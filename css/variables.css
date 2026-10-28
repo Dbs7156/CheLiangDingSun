@@ -1,0 +1,47 @@
+:root {
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Source Han Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --ink: #0b1f3a;
+  --ink-soft: #41526b;
+  --muted: #68778c;
+  --faint: #98a5b7;
+  --line: #e3eaf2;
+  --line-strong: #d3dde9;
+  --background: #f7f9fc;
+  --surface: #ffffff;
+  --surface-soft: #f8fafd;
+
+  --blue-50: #eff5ff;
+  --blue-100: #dbe9fe;
+  --blue-200: #bfd6fe;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+  --cyan: #0891b2;
+  --teal: #0d9488;
+  --green: #059669;
+  --amber: #d97706;
+  --red: #dc2626;
+  --violet: #7c3aed;
+  --navy: #081a30;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(15, 35, 65, 0.04),
+    0 8px 24px -18px rgba(15, 35, 65, 0.24);
+  --shadow-card: 0 1px 2px rgba(15, 35, 65, 0.04),
+    0 12px 32px -20px rgba(15, 35, 65, 0.24);
+  --shadow-lift: 0 2px 4px rgba(15, 35, 65, 0.05),
+    0 28px 70px -30px rgba(15, 35, 65, 0.32);
+  --shadow-blue: 0 10px 28px -12px rgba(37, 99, 235, 0.55);
+
+  --container: 1240px;
+  --header-height: 72px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}

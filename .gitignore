@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Environment
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Runtime data
+backend/history.db
+backend/history.db-shm
+backend/history.db-wal
+backend/tmp*
+backend/.uploads/
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Model binaries
+backend/*.onnx
+backend/*.pt
+backend/*.engine
+backend/*.onnx.data
+
+# Test / browser artifacts
+test-results/
+playwright-report/
+.playwright/
+screenshots/
+artifacts/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.tsbuildinfo
