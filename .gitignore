@@ -40,6 +40,10 @@ backend/*.pt
 backend/*.engine
 backend/*.onnx.data
 
+# Keep the production model in Git so a server can deploy from a plain clone.
+# It is 9.5 MB, below GitHub's 100 MB file limit.
+!backend/best.onnx
+
 # Test / browser artifacts
 test-results/
 playwright-report/

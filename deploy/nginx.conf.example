@@ -1,0 +1,32 @@
+# Nginx site template for the vehicle damage detection site.
+# Copy this file to /etc/nginx/sites-available/vehicle-damage, then replace
+# __SERVER_NAME__ (use _ for a bare IP) and __PROJECT_ROOT__.
+#
+# The owner must be able to read __PROJECT_ROOT__/out. The backend is expected
+# to listen on 127.0.0.1:8000 with a single Uvicorn worker.
+
+server {
+    listen 80;
+    server_name __SERVER_NAME__;
+
+    root __PROJECT_ROOT__/out;
+    index index.html;
+
+    # Video uploads are allowed up to 200 MB by the backend.
+    client_max_body_size 220m;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

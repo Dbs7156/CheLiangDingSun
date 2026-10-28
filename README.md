@@ -53,10 +53,15 @@
 │  ├─ storage.py              # SQLite 检测记录
 │  ├─ inference.py            # 图片/视频解码、ONNX、演示数据、跟踪
 │  ├─ classes.json            # 模型类别顺序与中文名（已与模型匹配）
-│  ├─ best.onnx               # ★ 当前使用的 YOLO26n 模型
+│  ├─ best.onnx               # 当前使用的 YOLO26n 模型（约 9.5 MB）
 │  ├─ requirements.txt
 │  └─ .env.example
-├─ .env.example               # NEXT_PUBLIC_API_BASE_URL
+├─ deploy/
+│  ├─ deploy.sh               # 服务器拉取、构建、重启脚本
+│  ├─ nginx.conf.example      # Nginx 站点模板
+│  └─ vehicle-damage.service.example
+├─ .env.example               # 本地 API 地址示例
+├─ .env.production            # 服务器同源构建默认值
 ├─ .gitignore
 ├─ next.config.mjs
 ├─ package.json
@@ -138,6 +143,205 @@ npm run start
 ```
 
 `npm run build` 会生成根目录的 `out/`，`npm run start` 使用 `serve` 托管静态文件。后端继续用 Uvicorn 启动。生产环境建议用 Nginx 将前端静态文件和 `/api` 放在同一域名下，以稳定保存会话 Cookie。
+
+## GitHub 与服务器部署
+
+### 1. 推送到 GitHub
+
+项目已经包含可部署的模型文件和构建配置。首次推送：
+
+```bash
+git add -A
+git commit -m "chore: prepare GitHub deployment"
+git push -u origin main
+```
+
+后续更新只需要：
+
+```bash
+git add -A
+git commit -m "feat: update site"
+git push origin main
+```
+
+以下内容已被 `.gitignore` 忽略，不会推到 GitHub：
+
+- `node_modules/`、`.next/`、`out/`
+- `backend/.venv/`
+- `.env`、`.env.local`
+- `backend/history.db`
+- 运行日志和临时上传文件
+
+`backend/best.onnx` 是例外，已纳入 Git。它约 9.5 MB，低于 GitHub 单文件 100 MB 限制，因此服务器直接 `git clone` 就能拿到模型。如果以后模型超过 100 MB，应改用 Git LFS 或单独的对象存储。
+
+### 2. 服务器首次部署
+
+下面以 Ubuntu/Debian、项目目录 `/opt/vehicle-damage` 为例。服务器需要：
+
+- Git
+- Nginx
+- Python 3.11+
+- Node.js 20+
+- 一个可以运行后端进程的普通 Linux 用户
+
+安装基础依赖（Node.js 请安装 20 LTS 或更高版本）：
+
+```bash
+sudo apt update
+sudo apt install -y git nginx python3-venv curl
+node --version
+python3 --version
+```
+
+如果服务器还没有 GitHub SSH 权限，先配置 Deploy Key，或改用仓库的 HTTPS 地址克隆。
+
+```bash
+sudo mkdir -p /opt/vehicle-damage
+sudo chown "$USER":"$USER" /opt/vehicle-damage
+
+git clone git@github.com:Dbs7156/CheLiangDingSun.git /opt/vehicle-damage
+cd /opt/vehicle-damage
+```
+
+检查模型是否随仓库拉取成功：
+
+```bash
+ls -lh backend/best.onnx
+```
+
+#### 首次配置后端环境
+
+```bash
+cd /opt/vehicle-damage/backend
+cp .env.example .env
+```
+
+HTTP 首次部署可以保持：
+
+```dotenv
+COOKIE_SECURE=false
+```
+
+配置 HTTPS 后改为 `true`。使用下面的 Nginx 同源部署时，不需要额外配置 CORS。
+
+#### 安装 Nginx 配置
+
+仓库提供了模板 `deploy/nginx.conf.example`。先用 IP 访问时，把服务器名占位符替换为 `_`：
+
+```bash
+cd /opt/vehicle-damage
+
+sed \
+  -e 's|__PROJECT_ROOT__|/opt/vehicle-damage|g' \
+  -e 's|__SERVER_NAME__|_|g' \
+  deploy/nginx.conf.example \
+  | sudo tee /etc/nginx/sites-available/vehicle-damage >/dev/null
+
+sudo ln -sf /etc/nginx/sites-available/vehicle-damage /etc/nginx/sites-enabled/vehicle-damage
+
+# 仅在没有其他网站的情况下移除默认站点，避免 IP 访问命中 Nginx 默认页
+sudo rm -f /etc/nginx/sites-enabled/default
+
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+有域名时，把 `__SERVER_NAME__` 替换成实际域名，并提前配置 DNS 解析。
+
+#### 安装 systemd 服务
+
+```bash
+cd /opt/vehicle-damage
+
+sed \
+  -e "s|__PROJECT_ROOT__|/opt/vehicle-damage|g" \
+  -e "s|__USER__|$USER|g" \
+  deploy/vehicle-damage.service.example \
+  | sudo tee /etc/systemd/system/vehicle-damage.service >/dev/null
+
+sudo systemctl daemon-reload
+sudo systemctl enable vehicle-damage
+```
+
+> 必须保持 **1 个 Uvicorn worker**。视频任务状态保存在进程内，多 worker 会导致轮询请求落到另一个进程，报“任务不存在”。
+
+#### 执行首次部署
+
+```bash
+cd /opt/vehicle-damage
+bash deploy/deploy.sh
+```
+
+这个脚本会依次完成：
+
+1. 创建 `backend/.venv` 并安装 Python 依赖
+2. `npm ci` 安装前端依赖
+3. 以同源 API `/` 构建 `out/`
+4. 重启 `vehicle-damage` systemd 服务
+5. 重载 Nginx
+6. 请求 `/api/health` 验证后端
+
+完成后访问：
+
+```text
+http://服务器IP/
+```
+
+前端和 `/api` 都由 Nginx 统一对外提供服务，因此不存在跨域 Cookie 问题。
+
+### 3. 后续更新
+
+本地推送新提交：
+
+```bash
+git add -A
+git commit -m "feat: update site"
+git push origin main
+```
+
+登录服务器执行：
+
+```bash
+cd /opt/vehicle-damage
+git pull --ff-only
+bash deploy/deploy.sh
+```
+
+脚本会安装依赖、重新构建并重启服务。`.env`、SQLite 记录和 `.venv` 不会被 Git 覆盖。
+
+### 4. 配置 HTTPS
+
+先把 Nginx 配置中的 `server_name _` 或 IP 改成域名，然后：
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d example.com
+```
+
+修改 `backend/.env`：
+
+```dotenv
+COOKIE_SECURE=true
+```
+
+重启后端：
+
+```bash
+sudo systemctl restart vehicle-damage
+```
+
+### 5. 常见问题
+
+| 现象 | 排查 |
+| --- | --- |
+| 打开 IP 是 Nginx 默认页 | 是否删除了 `/etc/nginx/sites-enabled/default`，是否执行了 `nginx -t` 和 reload |
+| 页面显示“服务未连接” | 检查 Nginx 是否把 `/api/` 反代到 `127.0.0.1:8000` |
+| 视频上传返回 413 | Nginx `client_max_body_size` 是否已设置为 `220m` |
+| 模型状态不是 `model` | `backend/best.onnx` 是否存在，`DETECTION_MODE` 是否为 `auto` |
+| 视频轮询报“任务不存在” | 是否误开了多个 Uvicorn worker，当前只能使用 1 个 |
+| 后端重启失败 | `sudo systemctl status vehicle-damage`、`sudo journalctl -u vehicle-damage -n 100` |
+
+部署脚本、Nginx 模板和 systemd 模板都在 [deploy/](deploy/) 目录中。
 
 ## ONNX 模型
 
@@ -255,7 +459,7 @@ npm run start
 - 视频异步任务已用 `best.onnx` 实测，可生成真实检测时间轴与轨迹。
 - 端到端输出已正确解析，检测框可还原到原图坐标。
 - 当前示例车辆图片上模型也会给出轮胎相关检测，属于模型预测结果；阈值越高结果越少。模型精度最终取决于训练数据和训练质量。
-- ONNX 模型文件不提交 Git，部署时需要单独放到 `backend/best.onnx`。
+- ONNX 模型文件已纳入 Git（约 9.5 MB，低于 GitHub 单文件 100 MB 限制），服务器克隆后即可直接加载；若以后替换成更大的模型，建议改用 Git LFS 或对象存储。
 
 ## 说明
 
